@@ -1,0 +1,19 @@
+!table
+!version 1000
+!charset WindowsLatin1
+
+Definition Table
+  Type NATIVE Charset "WindowsLatin1"
+  Fields 7
+    Lokalitetsnummer Char (254) ;
+    Hovedadresse Char (254) ;
+    Flade_id Char (75) ;
+    Lokalitetsstatus Char (100) ;
+    Fladestatus Char (100) ;
+    Forurening_id Char (75) ;
+    MI_PRINX Float ;
+begin_metadata
+"\IsReadOnly" = "FALSE"
+"\MapInfo" = ""
+"\MapInfo\TableID" = "6035eba8-7eb6-46ed-928b-65cd65d17155"
+end_metadata

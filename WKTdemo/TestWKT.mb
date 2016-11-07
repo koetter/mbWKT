@@ -1,0 +1,86 @@
+
+Include "mapbasic.def"
+Include "icons.def"
+Include "MENU.DEF"
+Include "..\WKT.def"
+Include "TestWKT.def"
+
+
+Sub Main
+
+	Create ButtonPad "WKT" As
+		Separator
+		PushButton
+			Calling WKTeksport
+			Icon 8001 file "icons.dll"
+			'Cursor MI_CURSOR_CROSSHAIR
+			'DrawMode DM_CUSTOM_POINT
+			HelpMsg "Konverter et polygon til WKT"
+		Title "WKT"
+		Width 10
+		ToolbarPosition(1, 5)
+		Show
+		Fixed
+	
+	Open Table ApplicationDirectory$() + "Data\TestWKT.TAB" Interactive
+	Map From TestWKT
+	
+End Sub
+
+
+Sub WKTeksport
+	
+	Dim selCount, tmpCount As Integer
+	Dim msg, sWKT as String
+	Dim	oSel As Object
+	
+    
+    
+    Set CoordSys Earth Projection 8, 115, 7, 9.0, 0, 0.9996, 500000, 0
+	
+	selCount = SelectionInfo(SEL_INFO_NROWS)
+	
+	' We shouldn't ever be in this routine w/o a selection.
+	If selCount < 1 Then
+		Note "Du skal selekterer et polygon"+ chr$(10) + "før du anvender funktionen."
+		Exit sub
+	End If
+	
+	'Print "Commiting to tmp.tab"
+	Commit Table Selection As "C:\temp\tmp.tab"
+	Open Table "C:\temp\tmp.tab"
+	'Print "Looping throug table tmp.tab"
+	Fetch First from tmp
+	Do While not EOT(tmp)
+		oSel = tmp.obj
+		sWKT = sWKT + obj2WKT(oSel) + chr$(10)
+		Fetch Next from tmp
+	Loop
+	Print Chr$(12)
+	Print sWKT
+	'If CopyToClipboard(sWKT) Then
+	'	msg = "WKT-strenge er kopieret til din udklipsholder" + chr$(10)
+	'	Note msg
+	'End If
+	'Print "Dropping tmp.tab"
+	Drop Table tmp
+	
+End Sub
+
+
+Function CopyToClipboard (ByVal s as string) as logical 
+	CopyToClipboard = FALSE
+	if (s <> "") 
+	   then if OpenClipboard(WindowInfo (WIN_MAPINFO, WIN_INFO_WND)) = 1 
+	           then if EmptyClipboard() = 1 
+	                   then if SetClipboardDataString (CF_TEXT, s) <> 0 
+	                           then CopyToClipboard = TRUE 
+	                        end if 
+	                end if 
+	                if CloseClipboard() = 0
+	                   then note "Warning: failed to close clipboard."
+	                end if 
+	        end if
+	end if 
+end function
+

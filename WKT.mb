@@ -1,0 +1,144 @@
+
+Include "MAPBASIC.DEF"
+Include "wkt.def"
+
+Function obj2WKT(ByVal oObj AS object) as String
+	Dim i, n, nRows, nObj, nNodes As Integer
+	Dim sWKT As String
+	sWKT = ""
+	
+	If Str$(oObj) = "Point" Then
+		sWKT = sWKT + "POINT(" + ObjectGeography(oObj,OBJ_GEO_POINTX) + " " + ObjectGeography(oObj,OBJ_GEO_POINTY) + ")"
+		
+	ElseIf Str$(oObj) = "Multipoint" Then
+		'Print "Processing Multipoint"
+		nObj = ObjectInfo(oObj, OBJ_INFO_NPNTS)
+		'Print oObj + " delobjekter"
+		
+		'Print "Creating wkt.tab"
+		Create Table "wkt" (idx Smallint)
+			File "C:\temp\wkt.TAB" TYPE NATIVE Charset "WindowsLatin1"
+		Create Map For wkt CoordSys Earth Projection 8, 115, "m", 9, 0, 0.9996, 500000, 0 Bounds (-7745844.29605, -9997964.94315) (8745844.29605, 9997964.94315)
+		
+		'Print "Inserting multipoints to wkt"
+		Insert Into wkt (Obj)
+			Values (oObj)
+		
+		'Print "Adding Wkt to map"
+		Add Map Layer wkt
+		Set Map Layer 1 Editable On
+		Select * From wkt
+		
+		'Print "Disaggregating multipoints"
+		Objects Disaggregate Into Table wkt
+		nRows = TableInfo(wkt, TAB_INFO_NROWS)-1
+		
+		'Print nRows + " rows found in table"
+		sWKT = sWKT + "MULTIPOINT("
+		Fetch First From wkt
+		Do While Not EOT(wkt)
+			oObj = wkt.Obj
+			sWKT = sWKT + "(" + ObjectGeography(oObj,OBJ_GEO_POINTX) + " " + ObjectGeography(oObj,OBJ_GEO_POINTY) + "),"
+			Fetch Next From wkt
+		Loop
+		sWKT = Left$(sWKT,Len(sWKT)-1)
+		sWKT = sWKT + ")"
+		'Print sWKT
+		'Print "Dropping table wkt"
+		Drop table wkt
+		
+	ElseIf Str$(oObj) = "Line" Then
+		sWKT = "LINESTRING(" + ObjectGeography(oObj,OBJ_GEO_LINEBEGX) + " " + ObjectGeography(oObj,OBJ_GEO_LINEBEGY) + ", "
+		sWKT = sWKT + ObjectGeography(oObj,OBJ_GEO_LINEENDX) + " " + ObjectGeography(oObj,OBJ_GEO_LINEENDY)+ ")"
+		
+	ElseIf Str$(oObj) = "Polyline" Then
+		nObj = ObjectInfo(oObj, OBJ_INFO_NPOLYGONS)
+		If nObj = 1 Then
+			sWKT = sWKT + "LINESTRING"
+		Elseif nObj > 1 Then
+			sWKT = sWKT + "MULTILINESTRING("
+		Else
+			Note "Could not determin polyline" + Chr$(10)
+			Goto Exitfunc
+		End If
+		
+		for n = 1 to nObj
+			nNodes = ObjectInfo(oObj, OBJ_INFO_NPOLYGONS+n)
+			sWKT = sWKT + "("
+			For i = 1 to nNodes
+				sWKT = sWKT + ObjectNodeX(oObj,n,i) + " " + ObjectNodeY(oObj,n,i) + ","
+			Next
+			sWKT = Left$(sWKT,Len(sWKT)-1) + "),"
+		Next
+		sWKT = Left$(sWKT,Len(sWKT)-1)
+		If nObj > 1 Then
+			sWKT = sWKT + ")"
+		End if
+		
+	ElseIf Str$(oObj) = "Region" Then
+		' Check if it is a merged object
+		Create Table "wkt" (idx Smallint)
+			File "C:\temp\wkt.TAB" TYPE NATIVE Charset "WindowsLatin1"
+		'Open Table "C:\temp\wkt.TAB"
+		Create Map For wkt CoordSys Earth Projection 8, 115, "m", 9, 0, 0.9996, 500000, 0 Bounds (-7745844.29605, -9997964.94315) (8745844.29605, 9997964.94315)
+		Insert Into wkt (Obj)
+			Values (oObj)
+		Add Map Layer wkt
+		Set Map Layer 1 Editable On
+		
+		Select * From wkt into Selection
+		Print "wkt-object: " + Str$(Selection.Obj)
+		Objects Disaggregate Into Table wkt
+		' Polygoner der ligger ved siden af hinanden
+		
+		nRows = TableInfo(wkt, TAB_INFO_NROWS)-1
+		If nRows = 1 Then
+			sWKT = sWKT + "POLYGON"
+		Elseif nRows > 1 Then
+			sWKT = sWKT + "MULTIPOLYGON("
+		Else
+			Note "Could not determin polygone" + Chr$(10)
+			Goto Exitfunc
+		End If
+		
+		Fetch First From wkt
+		Do While Not EOT(wkt)
+			oObj = wkt.Obj
+			nObj = ObjectInfo(oObj, OBJ_INFO_NPOLYGONS)
+			nNodes = ObjectInfo(oObj, OBJ_INFO_NPOLYGONS+1)
+			sWKT = sWKT + "(("
+			' Loop gennem knudepunkterne i yderpolygonet
+			For i = 1 to nNodes
+				sWKT = sWKT + ObjectNodeX(oObj,1,i) + " " + ObjectNodeY(oObj,1,i) + ","
+			Next
+			sWKT = sWKT + ObjectNodeX(oObj,1,1) + " " + ObjectNodeY(oObj,1,1) + ")"
+			If nObj > 1 Then
+				' Loop gennem knudepunkterne i polygonets huller og generer WKT strengens noder
+				For n = 2 to nObj
+					nNodes = ObjectInfo(oObj, OBJ_INFO_NPOLYGONS+n)
+					sWKT = sWKT + ",("
+					' Loop gennem knudepunkterne og generer WKT strengens noder
+					For i = 1 to nNodes
+						sWKT = sWKT + ObjectNodeX(oObj,n,i) + " " + ObjectNodeY(oObj,n,i) + ","
+					Next
+					sWKT = sWKT + ObjectNodeX(oObj,n,1) + " " + ObjectNodeY(oObj,n,1) + ")"
+				Next
+			End if
+			sWKT = sWKT + "),"
+			Fetch Next From wkt
+		Loop
+		sWKT = Left$(sWKT,Len(sWKT)-1)
+		If nRows > 1 Then
+			sWKT = sWKT + ")"
+		End if
+
+		Drop table wkt
+		
+	Else
+		Note "Could not determin object objekttypen" + Chr$(10)
+	End If
+	
+	Exitfunc:
+	obj2WKT = sWKT
+	
+End Function

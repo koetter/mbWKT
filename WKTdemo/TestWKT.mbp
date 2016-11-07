@@ -1,0 +1,4 @@
+[LINK]
+Application=TestWKT.mbx
+Module=..\WKT.mbo
+Module=TestWKT.mbo

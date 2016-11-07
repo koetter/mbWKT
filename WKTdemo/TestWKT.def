@@ -1,0 +1,15 @@
+
+define CF_TEXT 1
+
+Declare Sub Main
+Declare Sub WKTeksport
+Declare Function CopyToClipboard (ByVal s as string) as logical
+
+declare function OpenClipboard lib "User32" (ByVal hwnd as integer) as Logical 
+declare function CloseClipboard lib "User32" () as Logical 
+declare function EmptyClipboard lib "User32" () as Logical 
+declare function SetClipboardDataString 
+                 lib "User32" alias "SetClipboardData" 
+                                       (byval fmt as smallint, 
+                                        ByVal s as string) as integer
+
